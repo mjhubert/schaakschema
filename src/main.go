@@ -7,6 +7,9 @@ import (
 	"github.com/MaxHalford/gago/presets"
 )
 
+//https://developers.google.com/maps/documentation/distance-matrix/
+//https://github.com/tealeg/xlsx
+
 // Sphere function minimum is 0 reached in (0, ..., 0).
 // Any search domain is fine.
 func sphere(X []float64) float64 {
@@ -18,13 +21,16 @@ func sphere(X []float64) float64 {
 }
 
 func main() {
+
+	LoadSchaakbondExcel("data\\Indeling.xlsx")
+
 	// Instantiate a GA with 2 variables and the fitness function
 
-	var ga = presets.Float64(20, sphere)
+	var ga = presets.Float64(5, sphere)
 
 	ga.Initialize()
 	// Enhancement
-	for i := 0; i < 8; i++ {
+	for i := 0; i < 10; i++ {
 		ga.Enhance()
 		// Display the current best solution
 		fmt.Printf("The best obtained solution is %f\n", ga.Best.Fitness)
