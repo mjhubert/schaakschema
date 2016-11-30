@@ -6,10 +6,40 @@ import (
 	"github.com/tealeg/xlsx"
 )
 
+//Klasse van Schaken
+type Klasse int
+
+const (
+	//Meester klasse
+	Meester Klasse = iota
+	//Eerste klasse
+	Eerste
+	//Tweede klasse
+	Tweede
+	//Derde klasse
+	Derde
+)
+
+//Gradatie wijziging
+type Gradatie int
+
+const (
+	//Ongewijzigd gradatie
+	Ongewijzigd Gradatie = iota
+	//Promotie gradatie
+	Promotie
+	//Degradatie gradatie
+	Degradatie
+	//Kampioen gradatie
+	Kampioen
+)
+
 //Team van een vereniging
 type Team struct {
-	id, naam, klasse, pd string
-	vereniging           Vereniging
+	id, naam   string
+	klasse     Klasse
+	pd         Gradatie
+	vereniging Vereniging
 }
 
 //Vereniging van de Schaakbond
@@ -43,9 +73,8 @@ func LoadSchaakbondExcel(fileName string) Schaakbond {
 				//1 - Team Klasse { M, 1, 2, 3 }
 				//4 - Team Naam
 				//5 - Vereniging Id
-				//6 - Vereniging Naam
-				//7 - Vereniging plaats
-				//8 - Team D/P/_
+				//6 - Vereniging plaats
+				//7 - Team D/P/_
 
 				if row.Cells[0].Value != "" &&
 					row.Cells[0].Value != "Teamid" {
@@ -55,24 +84,44 @@ func LoadSchaakbondExcel(fileName string) Schaakbond {
 					if !ok {
 						var nw Vereniging
 						nw.id = row.Cells[5].Value
-						nw.naam = row.Cells[6].Value
-						nw.plaats = row.Cells[7].Value
+						nw.plaats = row.Cells[6].Value
 						nw.teams = make(map[string]Team)
 						sb.verenigingen[v.id] = nw
 						v = nw
-
-						log.Printf("Vereniging: %v", v)
 					}
 
 					var t Team
 					t.id = row.Cells[0].Value
-					t.klasse = row.Cells[1].Value
 					t.naam = row.Cells[4].Value
-					t.pd = row.Cells[8].Value
+
+					switch row.Cells[1].Value {
+					case "M":
+						t.klasse = Meester
+					case "1":
+						t.klasse = Eerste
+					case "2":
+						t.klasse = Tweede
+					case "3":
+						t.klasse = Derde
+					default:
+						log.Panic("Unknown Klasse value of team ", row.Cells[0].Value, row.Cells[1].Value)
+					}
+
+					switch row.Cells[7].Value {
+					case "K":
+						t.pd = Kampioen
+					case "P":
+						t.pd = Promotie
+					case "D":
+						t.pd = Degradatie
+					case "":
+						t.pd = Ongewijzigd
+					default:
+						log.Panic("Unknown P/D value of team ", row.Cells[0].Value, row.Cells[7].Value)
+					}
+
 					t.vereniging = v
 					v.teams[t.id] = t
-
-					log.Printf("Team: Id: %s, Naam:%s, Klasse: %s", t.id, t.naam, t.klasse)
 
 				}
 			}
