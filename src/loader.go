@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/tealeg/xlsx"
@@ -42,10 +43,18 @@ type Team struct {
 	vereniging Vereniging
 }
 
+func (x Team) String() string {
+	return fmt.Sprintf("{ id: %s, naam: %s, klasse: %v, pd: %v, vereniging: %s}", x.id, x.naam, x.klasse, x.pd, x.vereniging.id)
+}
+
 //Vereniging van de Schaakbond
 type Vereniging struct {
 	id, naam, plaats string
 	teams            map[string]Team
+}
+
+func (x Vereniging) String() string {
+	return fmt.Sprintf("{ id: %s, naam: %s, plaats: %s, teams: %d}", x.id, x.naam, x.plaats, len(x.teams))
 }
 
 //Schaakbond van Nederland
@@ -86,7 +95,7 @@ func LoadSchaakbondExcel(fileName string) Schaakbond {
 						nw.id = row.Cells[5].Value
 						nw.plaats = row.Cells[6].Value
 						nw.teams = make(map[string]Team)
-						sb.verenigingen[v.id] = nw
+						sb.verenigingen[nw.id] = nw
 						v = nw
 					}
 
@@ -122,6 +131,7 @@ func LoadSchaakbondExcel(fileName string) Schaakbond {
 
 					t.vereniging = v
 					v.teams[t.id] = t
+					sb.teams[t.id] = t
 
 				}
 			}
