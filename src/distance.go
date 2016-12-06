@@ -13,6 +13,102 @@ import (
 	"time"
 )
 
+//CityID City identifier
+type CityID uint16
+
+//City information
+type City struct {
+	Name string
+	ID   CityID
+}
+
+//DistanceMatrix contains City and Distance Information
+type DistanceMatrix struct {
+	citiesByName            map[string]*City
+	citiesByID              map[CityID]*City
+	citiesTravelInformation map[uint32]*TravelInformation
+}
+
+//GetCityByID of matrix by ID
+func (distanceMatrix *DistanceMatrix) GetCityByID(ID CityID) *City {
+	return distanceMatrix.citiesByID[ID]
+}
+
+//GetCityByName of matrix by ID
+func (distanceMatrix *DistanceMatrix) GetCityByName(name string) *City {
+	return distanceMatrix.citiesByName[name]
+}
+
+func combineCityIDs(fromID CityID, toID CityID) uint32 {
+	var result uint32 = 0x0000
+
+	if fromID > toID {
+		to := toID
+		toID = fromID
+		fromID = to
+	}
+
+	result = uint32(fromID)
+	result = result << 8
+	result |= uint32(toID)
+
+	return result
+}
+
+//AddTravelInformation between cities
+func (distanceMatrix *DistanceMatrix) AddTravelInformation(fromID CityID, toID CityID, tinfo TravelInformation) {
+	nti := new(TravelInformation)
+	nti.City = tinfo.City
+	nti.Distance = tinfo.Distance
+	nti.Duration = tinfo.Duration
+	distanceMatrix.citiesTravelInformation[combineCityIDs(fromID, toID)] = nti
+}
+
+//GetTravelInformation between cities
+func (distanceMatrix *DistanceMatrix) GetTravelInformation(fromID CityID, toID CityID) *TravelInformation {
+	return distanceMatrix.citiesTravelInformation[combineCityIDs(fromID, toID)]
+}
+
+//GetOrAddCity to matrix
+func (distanceMatrix *DistanceMatrix) GetOrAddCity(name string) *City {
+
+	gc := distanceMatrix.citiesByName[name]
+
+	if gc != nil {
+		return gc
+	}
+
+	var city = new(City)
+
+	city.ID = CityID(uint16(len(distanceMatrix.citiesByID)))
+	city.Name = name
+
+	distanceMatrix.citiesByID[city.ID] = city
+	distanceMatrix.citiesByName[city.Name] = city
+
+	return city
+}
+
+//AddTravelInformations between cities in matrix
+func (distanceMatrix *DistanceMatrix) AddTravelInformations(info []TravelInformation) {
+	for _, ti := range info {
+		var fromCity = distanceMatrix.GetOrAddCity(ti.City[0])
+		var toCity = distanceMatrix.GetOrAddCity(ti.City[1])
+
+		distanceMatrix.AddTravelInformation(fromCity.ID, toCity.ID, ti)
+	}
+}
+
+//CreateDistanceMatrixWithTravelInformations between cities in matrix
+func CreateDistanceMatrixWithTravelInformations(info []TravelInformation) *DistanceMatrix {
+	matrix := new(DistanceMatrix)
+	matrix.citiesByID = make(map[CityID]*City)
+	matrix.citiesByName = make(map[string]*City)
+	matrix.citiesTravelInformation = make(map[uint32]*TravelInformation)
+	matrix.AddTravelInformations(info)
+	return matrix
+}
+
 //TravelInformation between cities
 type TravelInformation struct {
 	City [2]string
@@ -105,7 +201,7 @@ func getDistanceMatrix(apiKey string, cities []string, info *[]TravelInformation
 		//now none recursive chuncks comparison
 		for x := 0; x < len(divided); x++ {
 			for y := 0; y < len(divided); y++ {
-				if x != y {
+				if x < y {
 					chk := make([]string, 0, len(divided[x])+len(divided[y]))
 					chk = append(chk, divided[x]...)
 					chk = append(chk, divided[y]...)
@@ -212,8 +308,8 @@ func saveCachedDistances(cacheFileName string, infos []TravelInformation, positi
 	return err
 }
 
-//GetDistanceMatrix between cities by google maps API
-func GetDistanceMatrix(cities []string, cacheFileName string, apiKey string) ([]TravelInformation, error) {
+//GetTravelInformation between cities by google maps API
+func GetTravelInformation(cities []string, cacheFileName string, apiKey string) ([]TravelInformation, error) {
 
 	sort.Strings(cities)
 

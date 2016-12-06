@@ -2,76 +2,19 @@ package main
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/tealeg/xlsx"
 )
 
-//Klasse van Schaken
-type Klasse int
-
-const (
-	//Meester klasse
-	Meester Klasse = iota
-	//Eerste klasse
-	Eerste
-	//Tweede klasse
-	Tweede
-	//Derde klasse
-	Derde
-)
-
-//Gradatie wijziging
-type Gradatie int
-
-const (
-	//Ongewijzigd gradatie
-	Ongewijzigd Gradatie = iota
-	//Promotie gradatie
-	Promotie
-	//Degradatie gradatie
-	Degradatie
-	//Kampioen gradatie
-	Kampioen
-)
-
-//Team van een vereniging
-type Team struct {
-	id, naam   string
-	klasse     Klasse
-	pd         Gradatie
-	vereniging Vereniging
-}
-
-func (x Team) String() string {
-	return fmt.Sprintf("{ id: %s, naam: %s, klasse: %v, pd: %v, vereniging: %s}", x.id, x.naam, x.klasse, x.pd, x.vereniging.id)
-}
-
-//Vereniging van de Schaakbond
-type Vereniging struct {
-	id, naam, plaats string
-	teams            map[string]Team
-}
-
-func (x Vereniging) String() string {
-	return fmt.Sprintf("{ id: %s, naam: %s, plaats: %s, teams: %d}", x.id, x.naam, x.plaats, len(x.teams))
-}
-
-//Schaakbond van Nederland
-type Schaakbond struct {
-	verenigingen map[string]Vereniging
-	teams        map[string]Team
-}
-
 //LoadSchaakbondExcel Laad teams en verenigingen uit het excel-bestand
-func LoadSchaakbondExcel(fileName string) Schaakbond {
+func LoadSchaakbondExcel(fileName string) (*Schaakbond, error) {
 	xlFile, err := xlsx.OpenFile(fileName)
 
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
-	var sb Schaakbond
+	sb := new(Schaakbond)
 	sb.verenigingen = make(map[string]Vereniging)
 	sb.teams = make(map[string]Team)
 
@@ -113,7 +56,7 @@ func LoadSchaakbondExcel(fileName string) Schaakbond {
 					case "3":
 						t.klasse = Derde
 					default:
-						log.Panic("Unknown Klasse value of team ", row.Cells[0].Value, row.Cells[1].Value)
+						return nil, fmt.Errorf("Unknown Klasse value of team %v (%v)", row.Cells[0].Value, row.Cells[1].Value)
 					}
 
 					switch row.Cells[7].Value {
@@ -126,7 +69,7 @@ func LoadSchaakbondExcel(fileName string) Schaakbond {
 					case "":
 						t.pd = Ongewijzigd
 					default:
-						log.Panic("Unknown P/D value of team ", row.Cells[0].Value, row.Cells[7].Value)
+						return nil, fmt.Errorf("Unknown P/D value of team %v (%v)", row.Cells[0].Value, row.Cells[7].Value)
 					}
 
 					t.vereniging = v
@@ -138,5 +81,5 @@ func LoadSchaakbondExcel(fileName string) Schaakbond {
 		}
 	}
 
-	return sb
+	return sb, nil
 }

@@ -17,9 +17,25 @@ func sphere(X []float64) float64 {
 }
 
 func main() {
+	if len(os.Args) != 4 {
+		log.Fatal("usage: <EXCEL> <CACHEFILE> <APIKEY>")
+		return
+	}
 
-	sb := LoadSchaakbondExcel("data\\Indeling.xlsx")
+	var excelFileName = os.Args[1]
+	var distanceCacheFileName = os.Args[2]
+	var googleDistanceMatrixAPIKey = os.Args[3]
 
+	//1: load excel
+	sb, lerr := LoadSchaakbondExcel(excelFileName)
+
+	if lerr != nil {
+		log.Panic(lerr)
+	}
+
+	log.Printf("Loaded %d verenigingen and %d teams", len(sb.verenigingen), len(sb.teams))
+
+	//2: extract unique cities
 	plaatsen := make(map[string]bool)
 
 	for _, ver := range sb.verenigingen {
@@ -32,10 +48,28 @@ func main() {
 		uniekePlaatsen = append(uniekePlaatsen, plaats+", Netherlands")
 	}
 
-	info, err := GetDistanceMatrix(uniekePlaatsen, "data\\distance.cache", os.Args[1])
+	log.Printf("Extracted %d unique city names", len(uniekePlaatsen))
 
-	log.Print(info)
-	log.Print(err)
+	//3: get travel information between cities
+	info, err := GetTravelInformation(uniekePlaatsen, distanceCacheFileName, googleDistanceMatrixAPIKey)
+
+	if err != nil {
+		log.Panic(err)
+	}
+
+	log.Printf("Loaded %d travel information elements", len(info))
+
+	//4: create a distance matrix and index city names
+	distanceMartix := CreateDistanceMatrixWithTravelInformations(info)
+
+	log.Printf("Created distance matrix for %d cities with %d pairs", len(distanceMartix.citiesByID), len(distanceMartix.citiesTravelInformation))
+
+	//5: create a travel cost matrix for team-pairs and index team ids
+	teamTravelCostMatrix := CreateTeamTravelCostInformationMatrix(sb, distanceMartix)
+
+	log.Printf("Created team pair travel cost matrix for %d teams with %d pairs", len(teamTravelCostMatrix.teamCostIDByTeamID), len(teamTravelCostMatrix.teamCostMatrix))
+
+	//log.Print(distanceMartix.citiesTravelInformation)
 
 	/*
 		sb := LoadSchaakbondExcel("data\\Indeling.xlsx")
