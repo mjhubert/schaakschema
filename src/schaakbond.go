@@ -2,8 +2,45 @@ package main
 
 import "fmt"
 
-//Speelschema
+//Verplaatsing voor spelen Uit/Thuis
+type Verplaatsing uint16
+
+const (
+	//Uit spelen
+	Uit Verplaatsing = iota
+	//Thuis spelen
+	Thuis
+)
+
+//LotNummer
+type LotNummer uint16
+
+//Tegenstand info
+type Tegenstand struct {
+	Verplaatsing Verplaatsing
+	Tegenstander LotNummer
+}
+
+//Tegenstand info
+type Wedstrijd struct {
+	Thuis LotNummer
+	Uit   LotNummer
+}
+
+//Lot info
+type Lot struct {
+	Rondes [9]Tegenstand
+}
+
+//Lot info
+type Ronde struct {
+	Wedstrijden [5]Wedstrijd
+}
+
+//SpeelSchema voor schaken
 type SpeelSchema struct {
+	Loten  [10]Lot
+	Rondes [9]Ronde
 }
 
 //Klasse van Schaken

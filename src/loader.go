@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 
+	"strconv"
+
 	"github.com/tealeg/xlsx"
 )
 
@@ -82,4 +84,55 @@ func LoadSchaakbondExcel(fileName string) (*Schaakbond, error) {
 	}
 
 	return sb, nil
+}
+
+//LoadSpeelSchemaExcel Laad teams en verenigingen uit het excel-bestand
+func LoadSpeelSchemaExcel(fileName string) (*SpeelSchema, error) {
+	xlFile, err := xlsx.OpenFile(fileName)
+
+	if err != nil {
+		return nil, err
+	}
+
+	ss := new(SpeelSchema)
+
+	for _, sheet := range xlFile.Sheets {
+		if len(sheet.Rows) >= 7 &&
+			len(sheet.Rows[0].Cells) > 0 &&
+			sheet.Rows[0].Cells[0].Value == "Ronde" { //should be the wright sheet
+			for ix, row := range sheet.Rows {
+				if ix > 1 && ix < 7 {
+					for ronde := 0; ronde < 9; ronde++ {
+
+						thuis, err := strconv.ParseUint(row.Cells[1+(3*ronde)].Value, 10, 16)
+
+						if err != nil {
+							return nil, err
+						}
+
+						uit, err := strconv.ParseUint(row.Cells[2+(3*ronde)].Value, 10, 16)
+
+						if err != nil {
+							return nil, err
+						}
+
+						lotThuis := LotNummer(thuis - 1)
+						lotUit := LotNummer(uit - 1)
+
+						ss.Rondes[ronde].Wedstrijden[ix-2].Thuis = lotThuis
+						ss.Rondes[ronde].Wedstrijden[ix-2].Uit = lotUit
+						ss.Loten[lotThuis].Rondes[ronde].Tegenstander = lotUit
+						ss.Loten[lotThuis].Rondes[ronde].Verplaatsing = Thuis
+						ss.Loten[lotUit].Rondes[ronde].Tegenstander = lotThuis
+						ss.Loten[lotUit].Rondes[ronde].Verplaatsing = Uit
+
+					}
+				}
+			}
+
+			return ss, nil
+		}
+	}
+
+	return nil, fmt.Errorf("No suitable data found")
 }

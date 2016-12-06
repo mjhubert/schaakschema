@@ -87,3 +87,33 @@ func CreateTeamTravelCostInformationMatrix(sb *Schaakbond, distanceMatrix *Dista
 
 	return matrix
 }
+
+//TravelCosts info
+type TravelCosts struct {
+	TotalDuration, TotalDistance uint64
+}
+
+//Evaluate cost of team loten
+func Evaluate(matrix *TeamCostMatrix, ss *SpeelSchema, teamLoten []TeamCostID) *TravelCosts {
+
+	result := new(TravelCosts)
+
+	for lotNR, teamID := range teamLoten {
+		var totalDuration, totalDistance uint64
+
+		for ronde := 0; ronde < 9; ronde++ {
+
+			if ss.Loten[lotNR].Rondes[ronde].Verplaatsing == Uit {
+				travelInfo := matrix.GetTeamsTravelCost(teamID, teamLoten[ss.Loten[lotNR].Rondes[ronde].Tegenstander])
+				totalDistance += travelInfo.Distance
+				totalDuration += travelInfo.Duration
+			}
+
+		}
+
+		result.TotalDistance += totalDistance
+		result.TotalDuration += totalDuration
+	}
+
+	return result
+}

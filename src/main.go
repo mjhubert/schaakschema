@@ -17,17 +17,28 @@ func sphere(X []float64) float64 {
 }
 
 func main() {
-	if len(os.Args) != 4 {
-		log.Fatal("usage: <EXCEL> <CACHEFILE> <APIKEY>")
+	log.Print("Phact Schaakindeling Optimizer v0.1")
+	if len(os.Args) != 5 {
+		log.Fatal("usage: <EXCELSCHEMA> <EXCELTEAMS> <CACHEFILE> <APIKEY>")
 		return
 	}
 
-	var excelFileName = os.Args[1]
-	var distanceCacheFileName = os.Args[2]
-	var googleDistanceMatrixAPIKey = os.Args[3]
+	var excelSchemaFileName = os.Args[1]
+	var excelTeamsFileName = os.Args[2]
+	var distanceCacheFileName = os.Args[3]
+	var googleDistanceMatrixAPIKey = os.Args[4]
 
-	//1: load excel
-	sb, lerr := LoadSchaakbondExcel(excelFileName)
+	//0: load excel Schema
+	ss, serr := LoadSpeelSchemaExcel(excelSchemaFileName)
+
+	if serr != nil {
+		log.Panic(serr)
+	}
+
+	log.Printf("Loaded %d rondes and %d loten", len(ss.Rondes), len(ss.Loten))
+
+	//1: load excel Teams
+	sb, lerr := LoadSchaakbondExcel(excelTeamsFileName)
 
 	if lerr != nil {
 		log.Panic(lerr)
@@ -68,6 +79,10 @@ func main() {
 	teamTravelCostMatrix := CreateTeamTravelCostInformationMatrix(sb, distanceMartix)
 
 	log.Printf("Created team pair travel cost matrix for %d teams with %d pairs", len(teamTravelCostMatrix.teamCostIDByTeamID), len(teamTravelCostMatrix.teamCostMatrix))
+
+	travelCosts := Evaluate(teamTravelCostMatrix, ss, []TeamCostID{12, 1, 2, 64, 4, 5, 67, 7, 8, 9})
+
+	log.Print(travelCosts)
 
 	//log.Print(distanceMartix.citiesTravelInformation)
 
