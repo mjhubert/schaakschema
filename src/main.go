@@ -80,7 +80,8 @@ func main() {
 
 	log.Printf("Created team pair travel cost matrix for %d teams with %d pairs", len(teamTravelCostMatrix.teamCostIDByTeamID), len(teamTravelCostMatrix.teamCostMatrix))
 
-	travelCosts := Evaluate(teamTravelCostMatrix, ss, []TeamCostID{12, 1, 2, 64, 4, 5, 67, 7, 8, 9})
+	optimizer := NewOptimizer(teamTravelCostMatrix, ss)
+	travelCosts := optimizer.Evaluate([]TeamCostID{12, 1, 2, 64, 4, 5, 67, 7, 8, 9})
 
 	log.Print(travelCosts)
 

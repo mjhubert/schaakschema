@@ -86,7 +86,7 @@ func LoadSchaakbondExcel(fileName string) (*Schaakbond, error) {
 	return sb, nil
 }
 
-//LoadSpeelSchemaExcel Laad teams en verenigingen uit het excel-bestand
+//LoadSpeelSchemaExcel Laad speel schema excel-bestand
 func LoadSpeelSchemaExcel(fileName string) (*SpeelSchema, error) {
 	xlFile, err := xlsx.OpenFile(fileName)
 

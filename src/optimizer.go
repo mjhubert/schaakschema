@@ -93,8 +93,22 @@ type TravelCosts struct {
 	TotalDuration, TotalDistance uint64
 }
 
+//Optimizer info
+type Optimizer struct {
+	matrix *TeamCostMatrix
+	schema *SpeelSchema
+}
+
+//NewOptimizer create a optimizer
+func NewOptimizer(matrix *TeamCostMatrix, schema *SpeelSchema) *Optimizer {
+	optimizer := new(Optimizer)
+	optimizer.matrix = matrix
+	optimizer.schema = schema
+	return optimizer
+}
+
 //Evaluate cost of team loten
-func Evaluate(matrix *TeamCostMatrix, ss *SpeelSchema, teamLoten []TeamCostID) *TravelCosts {
+func (optimizer *Optimizer) Evaluate(teamLoten []TeamCostID) *TravelCosts {
 
 	result := new(TravelCosts)
 
@@ -103,8 +117,8 @@ func Evaluate(matrix *TeamCostMatrix, ss *SpeelSchema, teamLoten []TeamCostID) *
 
 		for ronde := 0; ronde < 9; ronde++ {
 
-			if ss.Loten[lotNR].Rondes[ronde].Verplaatsing == Uit {
-				travelInfo := matrix.GetTeamsTravelCost(teamID, teamLoten[ss.Loten[lotNR].Rondes[ronde].Tegenstander])
+			if optimizer.schema.Loten[lotNR].Rondes[ronde].Verplaatsing == Uit {
+				travelInfo := optimizer.matrix.GetTeamsTravelCost(teamID, teamLoten[optimizer.schema.Loten[lotNR].Rondes[ronde].Tegenstander])
 				totalDistance += travelInfo.Distance
 				totalDuration += travelInfo.Duration
 			}
