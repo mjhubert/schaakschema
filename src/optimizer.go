@@ -1,5 +1,10 @@
 package main
 
+import (
+	"log"
+	"math"
+)
+
 //TeamCostID identiefier
 type TeamCostID uint16
 
@@ -90,7 +95,7 @@ func CreateTeamTravelCostInformationMatrix(sb *Schaakbond, distanceMatrix *Dista
 
 //TravelCosts info
 type TravelCosts struct {
-	TotalDuration, TotalDistance uint64
+	TotalDuration, TotalDistance, TotalCost uint64
 }
 
 //Optimizer info
@@ -115,18 +120,36 @@ func (optimizer *Optimizer) Evaluate(teamLoten []TeamCostID) *TravelCosts {
 	for lotNR, teamID := range teamLoten {
 		var totalDuration, totalDistance uint64
 
-		for ronde := 0; ronde < 9; ronde++ {
+		travelInfos := make([]*TravelInformation, 0, 9)
 
+		for ronde := 0; ronde < 9; ronde++ {
 			if optimizer.schema.Loten[lotNR].Rondes[ronde].Verplaatsing == Uit {
 				travelInfo := optimizer.matrix.GetTeamsTravelCost(teamID, teamLoten[optimizer.schema.Loten[lotNR].Rondes[ronde].Tegenstander])
+				travelInfos = append(travelInfos, travelInfo)
 				totalDistance += travelInfo.Distance
 				totalDuration += travelInfo.Duration
 			}
-
 		}
+
+		meanDistance := float64(totalDistance) / 9.0
+		meanDuration := float64(totalDuration) / 9.0
+		sdDistance := 0.0
+		sdDuration := 0.0
+
+		for _, ti := range travelInfos {
+			sdDistance += math.Pow(float64(ti.Distance)-meanDistance, 2)
+			sdDuration += math.Pow(float64(ti.Duration)-meanDuration, 2)
+		}
+
+		sdDistance = math.Sqrt(sdDistance / float64(len(travelInfos)-1))
+		sdDuration = math.Sqrt(sdDuration / float64(len(travelInfos)-1))
+
+		log.Printf("lotNr=%d, teamID=%v, meanDistance=%v, meanDuration=%v, sdDistance=%v, sdDuration=%v, totalDistance=%v, totalDuration=%v",
+			lotNR, teamID, meanDistance, meanDuration, sdDistance, sdDuration, totalDistance, totalDuration)
 
 		result.TotalDistance += totalDistance
 		result.TotalDuration += totalDuration
+		result.TotalCost += uint64((meanDistance * sdDistance) + (meanDuration * sdDuration))
 	}
 
 	return result
