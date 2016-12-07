@@ -81,7 +81,19 @@ func main() {
 	log.Printf("Created team pair travel cost matrix for %d teams with %d pairs", len(teamTravelCostMatrix.teamCostIDByTeamID), len(teamTravelCostMatrix.teamCostMatrix))
 
 	optimizer := NewOptimizer(teamTravelCostMatrix, ss)
-	travelCosts := optimizer.Evaluate([][]TeamCostID{[]TeamCostID{12, 1, 2, 14, 4, 5, 17, 7, 18, 9}, []TeamCostID{22, 21, 26, 23, 24, 25, 27, 33, 38, 39}})
+
+	lastYearGroup1A := []string{"0400691", "0100261", "0400891", "0900611", "0800071", "0400041", "0900081", "0300101", "0900231", "0200541"}
+
+	lastYearGroup1ACostIDs, terr := teamTravelCostMatrix.TranslateToTeamCostIDs(lastYearGroup1A)
+
+	if terr != nil {
+		log.Panic(terr)
+	}
+
+	log.Print(lastYearGroup1A)
+	log.Print(lastYearGroup1ACostIDs)
+
+	travelCosts := optimizer.Evaluate([][]TeamCostID{lastYearGroup1ACostIDs})
 
 	log.Print(travelCosts)
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"math"
 )
@@ -18,6 +19,40 @@ type TeamInfo struct {
 type TeamCostMatrix struct {
 	teamCostIDByTeamID map[string]*TeamInfo
 	teamCostMatrix     map[uint32]*TravelInformation
+}
+
+//TranslateToTeamInfos translate teamids to team info
+func (matrix *TeamCostMatrix) TranslateToTeamInfos(teamIDs []string) ([]*TeamInfo, error) {
+	result := make([]*TeamInfo, len(teamIDs), len(teamIDs))
+
+	for ix, id := range teamIDs {
+		info := matrix.teamCostIDByTeamID[id]
+
+		if info == nil {
+			return nil, fmt.Errorf("Unknown team id %v", id)
+		}
+
+		result[ix] = info
+	}
+
+	return result, nil
+}
+
+//TranslateToTeamCostIDs translate teamids to TeamCostIDs
+func (matrix *TeamCostMatrix) TranslateToTeamCostIDs(teamIDs []string) ([]TeamCostID, error) {
+	result := make([]TeamCostID, len(teamIDs), len(teamIDs))
+
+	infos, err := matrix.TranslateToTeamInfos(teamIDs)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for ix, inf := range infos {
+		result[ix] = inf.teamCostID
+	}
+
+	return result, nil
 }
 
 func combineTeamCostIDs(fromID TeamCostID, toID TeamCostID) uint32 {
@@ -137,8 +172,8 @@ func (optimizer *Optimizer) Evaluate(teamGroups [][]TeamCostID) *TravelCosts {
 
 			meanAllDistance := float64(totalDistance) / 8.0
 			meanAllDuration := float64(totalDuration) / 8.0
-			meanUitDistance := float64(totalDistance) / float64(uitCount)
-			meanUitDuration := float64(totalDuration) / float64(uitCount)
+			meanUitDistance := float64(totalDistance) / float64(len(travelInfos))
+			meanUitDuration := float64(totalDuration) / float64(len(travelInfos))
 
 			sdUitDistance := 0.0
 			sdUitDuration := 0.0
@@ -151,8 +186,8 @@ func (optimizer *Optimizer) Evaluate(teamGroups [][]TeamCostID) *TravelCosts {
 			sdUitDistance = math.Sqrt(sdUitDistance / float64(len(travelInfos)-1))
 			sdUitDuration = math.Sqrt(sdUitDuration / float64(len(travelInfos)-1))
 
-			log.Printf("lotNr=%d, teamID=%v, meanAllDistance=%v, meanAllDuration=%v, meanUitDistance=%v, meanUitDuration=%v, sdUitDistance=%v, sdUitDuration=%v, totalDistance=%v, totalDuration=%v",
-				lotNR, teamID, meanAllDistance, meanAllDuration, meanUitDistance, meanUitDuration, sdUitDistance, sdUitDuration, totalDistance, totalDuration)
+			log.Printf("lotNr=%d, teamID=%v, meanAllDistance=%v, meanAllDuration=%v, meanUitDistance=%v, meanUitDuration=%v, sdUitDistance=%v, sdUitDuration=%v, totalDistance=%v, totalDuration=%v, len(travelInfos)=%d",
+				lotNR, teamID, meanAllDistance, meanAllDuration, meanUitDistance, meanUitDuration, sdUitDistance, sdUitDuration, totalDistance, totalDuration, len(travelInfos))
 
 			result.TotalDistance += totalDistance
 			result.TotalDuration += totalDuration
