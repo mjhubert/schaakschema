@@ -113,44 +113,51 @@ func NewOptimizer(matrix *TeamCostMatrix, schema *SpeelSchema) *Optimizer {
 }
 
 //Evaluate cost of team loten
-func (optimizer *Optimizer) Evaluate(teamLoten []TeamCostID) *TravelCosts {
+func (optimizer *Optimizer) Evaluate(teamGroups [][]TeamCostID) *TravelCosts {
 
 	result := new(TravelCosts)
 
-	for lotNR, teamID := range teamLoten {
-		var totalDuration, totalDistance uint64
+	for _, group := range teamGroups {
 
-		travelInfos := make([]*TravelInformation, 0, 9)
+		for lotNR, teamID := range group {
+			var totalDuration, totalDistance uint64
 
-		for ronde := 0; ronde < 9; ronde++ {
-			if optimizer.schema.Loten[lotNR].Rondes[ronde].Verplaatsing == Uit {
-				travelInfo := optimizer.matrix.GetTeamsTravelCost(teamID, teamLoten[optimizer.schema.Loten[lotNR].Rondes[ronde].Tegenstander])
-				travelInfos = append(travelInfos, travelInfo)
-				totalDistance += travelInfo.Distance
-				totalDuration += travelInfo.Duration
+			travelInfos := make([]*TravelInformation, 0, 8)
+			uitCount := 0
+
+			for ronde := 0; ronde < 8; ronde++ { //ronde 9 is on central location, do not measure
+				if optimizer.schema.Loten[lotNR].Rondes[ronde].Verplaatsing == Uit {
+					travelInfo := optimizer.matrix.GetTeamsTravelCost(teamID, group[optimizer.schema.Loten[lotNR].Rondes[ronde].Tegenstander])
+					travelInfos = append(travelInfos, travelInfo)
+					totalDistance += travelInfo.Distance
+					totalDuration += travelInfo.Duration
+					uitCount++
+				}
 			}
+
+			meanAllDistance := float64(totalDistance) / 8.0
+			meanAllDuration := float64(totalDuration) / 8.0
+			meanUitDistance := float64(totalDistance) / float64(uitCount)
+			meanUitDuration := float64(totalDuration) / float64(uitCount)
+
+			sdUitDistance := 0.0
+			sdUitDuration := 0.0
+
+			for _, ti := range travelInfos {
+				sdUitDistance += math.Pow(float64(ti.Distance)-meanUitDistance, 2)
+				sdUitDuration += math.Pow(float64(ti.Duration)-meanUitDuration, 2)
+			}
+
+			sdUitDistance = math.Sqrt(sdUitDistance / float64(len(travelInfos)-1))
+			sdUitDuration = math.Sqrt(sdUitDuration / float64(len(travelInfos)-1))
+
+			log.Printf("lotNr=%d, teamID=%v, meanAllDistance=%v, meanAllDuration=%v, meanUitDistance=%v, meanUitDuration=%v, sdUitDistance=%v, sdUitDuration=%v, totalDistance=%v, totalDuration=%v",
+				lotNR, teamID, meanAllDistance, meanAllDuration, meanUitDistance, meanUitDuration, sdUitDistance, sdUitDuration, totalDistance, totalDuration)
+
+			result.TotalDistance += totalDistance
+			result.TotalDuration += totalDuration
+			result.TotalCost += uint64((meanAllDistance * sdUitDistance) + (meanAllDuration * sdUitDuration))
 		}
-
-		meanDistance := float64(totalDistance) / 9.0
-		meanDuration := float64(totalDuration) / 9.0
-		sdDistance := 0.0
-		sdDuration := 0.0
-
-		for _, ti := range travelInfos {
-			sdDistance += math.Pow(float64(ti.Distance)-meanDistance, 2)
-			sdDuration += math.Pow(float64(ti.Duration)-meanDuration, 2)
-		}
-
-		sdDistance = math.Sqrt(sdDistance / float64(len(travelInfos)-1))
-		sdDuration = math.Sqrt(sdDuration / float64(len(travelInfos)-1))
-
-		log.Printf("lotNr=%d, teamID=%v, meanDistance=%v, meanDuration=%v, sdDistance=%v, sdDuration=%v, totalDistance=%v, totalDuration=%v",
-			lotNR, teamID, meanDistance, meanDuration, sdDistance, sdDuration, totalDistance, totalDuration)
-
-		result.TotalDistance += totalDistance
-		result.TotalDuration += totalDuration
-		result.TotalCost += uint64((meanDistance * sdDistance) + (meanDuration * sdDuration))
 	}
-
 	return result
 }
