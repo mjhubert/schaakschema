@@ -98,6 +98,7 @@ func (X Vector) Crossover(Y gago.Genome, rng *rand.Rand) (gago.Genome, gago.Geno
 		copy(swath2[size:], X[:stopXPosition+1])
 	}
 
+	//BUG: this presume a order over the whole vector, but it's only an order per group (of 10 team)
 	for ix := 0; ix < totalTeams; ix++ {
 		if (startXPosition < stopXPosition && (ix < startXPosition || ix > stopXPosition)) ||
 			(startXPosition > stopXPosition && (ix > stopXPosition && ix < startXPosition)) {
