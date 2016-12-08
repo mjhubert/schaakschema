@@ -19,6 +19,7 @@ func LoadSchaakbondExcel(fileName string) (*Schaakbond, error) {
 	sb := new(Schaakbond)
 	sb.verenigingen = make(map[string]Vereniging)
 	sb.teams = make(map[string]Team)
+	sb.klasses = make(map[Klasse][]Team)
 
 	for _, sheet := range xlFile.Sheets {
 		if sheet.Name == "Indeling" {
@@ -78,6 +79,13 @@ func LoadSchaakbondExcel(fileName string) (*Schaakbond, error) {
 					v.teams[t.id] = t
 					sb.teams[t.id] = t
 
+					klasseTeams := sb.klasses[t.klasse]
+
+					if klasseTeams == nil {
+						klasseTeams = make([]Team, 0, 256)
+					}
+
+					sb.klasses[t.klasse] = append(klasseTeams, t)
 				}
 			}
 		}

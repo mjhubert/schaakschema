@@ -3,7 +3,7 @@ package main
 import "fmt"
 
 //Verplaatsing voor spelen Uit/Thuis
-type Verplaatsing uint16
+type Verplaatsing byte
 
 const (
 	//Uit spelen
@@ -12,8 +12,8 @@ const (
 	Thuis
 )
 
-//LotNummer
-type LotNummer uint16
+//LotNummer info
+type LotNummer byte
 
 //Tegenstand info
 type Tegenstand struct {
@@ -21,7 +21,7 @@ type Tegenstand struct {
 	Tegenstander LotNummer
 }
 
-//Tegenstand info
+//Wedstrijd info
 type Wedstrijd struct {
 	Thuis LotNummer
 	Uit   LotNummer
@@ -32,7 +32,7 @@ type Lot struct {
 	Rondes [9]Tegenstand
 }
 
-//Lot info
+//Ronde info
 type Ronde struct {
 	Wedstrijden [5]Wedstrijd
 }
@@ -44,7 +44,7 @@ type SpeelSchema struct {
 }
 
 //Klasse van Schaken
-type Klasse int
+type Klasse byte
 
 const (
 	//Meester klasse
@@ -58,7 +58,7 @@ const (
 )
 
 //Gradatie wijziging
-type Gradatie int
+type Gradatie byte
 
 const (
 	//Ongewijzigd gradatie
@@ -97,4 +97,5 @@ func (x Vereniging) String() string {
 type Schaakbond struct {
 	verenigingen map[string]Vereniging
 	teams        map[string]Team
+	klasses      map[Klasse][]Team
 }

@@ -14,7 +14,10 @@ import (
 )
 
 //CityID City identifier
-type CityID uint16
+type CityID byte
+
+//CityTrip identifier
+type CityTrip uint16
 
 //City information
 type City struct {
@@ -26,7 +29,7 @@ type City struct {
 type DistanceMatrix struct {
 	citiesByName            map[string]*City
 	citiesByID              map[CityID]*City
-	citiesTravelInformation map[uint32]*TravelInformation
+	citiesTravelInformation map[CityTrip]*TravelInformation
 }
 
 //GetCityByID of matrix by ID
@@ -39,8 +42,8 @@ func (distanceMatrix *DistanceMatrix) GetCityByName(name string) *City {
 	return distanceMatrix.citiesByName[name]
 }
 
-func combineCityIDs(fromID CityID, toID CityID) uint32 {
-	var result uint32 = 0x0000
+func combineCityIDs(fromID CityID, toID CityID) CityTrip {
+	var result uint16 = 0x00
 
 	if fromID > toID {
 		to := toID
@@ -48,11 +51,11 @@ func combineCityIDs(fromID CityID, toID CityID) uint32 {
 		fromID = to
 	}
 
-	result = uint32(fromID)
+	result = uint16(fromID)
 	result = result << 8
-	result |= uint32(toID)
+	result |= uint16(toID)
 
-	return result
+	return CityTrip(result)
 }
 
 //AddTravelInformation between cities
@@ -80,7 +83,7 @@ func (distanceMatrix *DistanceMatrix) GetOrAddCity(name string) *City {
 
 	var city = new(City)
 
-	city.ID = CityID(uint16(len(distanceMatrix.citiesByID)))
+	city.ID = CityID(byte(len(distanceMatrix.citiesByID)))
 	city.Name = name
 
 	distanceMatrix.citiesByID[city.ID] = city
@@ -104,7 +107,7 @@ func CreateDistanceMatrixWithTravelInformations(info []TravelInformation) *Dista
 	matrix := new(DistanceMatrix)
 	matrix.citiesByID = make(map[CityID]*City)
 	matrix.citiesByName = make(map[string]*City)
-	matrix.citiesTravelInformation = make(map[uint32]*TravelInformation)
+	matrix.citiesTravelInformation = make(map[CityTrip]*TravelInformation)
 	matrix.AddTravelInformations(info)
 	return matrix
 }

@@ -7,7 +7,10 @@ import (
 )
 
 //TeamCostID identiefier
-type TeamCostID uint16
+type TeamCostID byte
+
+//TeamCostPairID identiefier
+type TeamCostPairID uint16
 
 //TeamInfo for team cost
 type TeamInfo struct {
@@ -18,7 +21,7 @@ type TeamInfo struct {
 //TeamCostMatrix cost info
 type TeamCostMatrix struct {
 	teamCostIDByTeamID map[string]*TeamInfo
-	teamCostMatrix     map[uint32]*TravelInformation
+	teamCostMatrix     map[TeamCostPairID]*TravelInformation
 }
 
 //TranslateToTeamInfos translate teamids to team info
@@ -55,8 +58,8 @@ func (matrix *TeamCostMatrix) TranslateToTeamCostIDs(teamIDs []string) ([]TeamCo
 	return result, nil
 }
 
-func combineTeamCostIDs(fromID TeamCostID, toID TeamCostID) uint32 {
-	var result uint32 = 0x0000
+func combineTeamCostIDs(fromID TeamCostID, toID TeamCostID) TeamCostPairID {
+	var result uint16 = 0x00
 
 	if fromID > toID {
 		to := toID
@@ -64,16 +67,22 @@ func combineTeamCostIDs(fromID TeamCostID, toID TeamCostID) uint32 {
 		fromID = to
 	}
 
-	result = uint32(fromID)
+	result = uint16(fromID)
 	result = result << 8
-	result |= uint32(toID)
+	result |= uint16(toID)
 
-	return result
+	id := TeamCostPairID(result)
+	return id
 }
 
 //GetTeamsTravelCost between cities
 func (matrix *TeamCostMatrix) GetTeamsTravelCost(fromID TeamCostID, toID TeamCostID) *TravelInformation {
 	return matrix.teamCostMatrix[combineTeamCostIDs(fromID, toID)]
+}
+
+//GetTeamCostID of string ID
+func (matrix *TeamCostMatrix) GetTeamCostID(teamID string) TeamCostID {
+	return matrix.teamCostIDByTeamID[teamID].teamCostID
 }
 
 //GetOrAddTeamCostInfoByTeam of matrix
@@ -87,7 +96,7 @@ func (matrix *TeamCostMatrix) GetOrAddTeamCostInfoByTeam(team Team) *TeamInfo {
 
 	teamInfo := new(TeamInfo)
 	teamInfo.team = team
-	teamInfo.teamCostID = TeamCostID(uint16(len(matrix.teamCostIDByTeamID)))
+	teamInfo.teamCostID = TeamCostID(byte(len(matrix.teamCostIDByTeamID)))
 
 	matrix.teamCostIDByTeamID[team.id] = teamInfo
 
@@ -98,7 +107,7 @@ func (matrix *TeamCostMatrix) GetOrAddTeamCostInfoByTeam(team Team) *TeamInfo {
 func CreateTeamTravelCostInformationMatrix(sb *Schaakbond, distanceMatrix *DistanceMatrix) *TeamCostMatrix {
 	matrix := new(TeamCostMatrix)
 	matrix.teamCostIDByTeamID = make(map[string]*TeamInfo)
-	matrix.teamCostMatrix = make(map[uint32]*TravelInformation)
+	matrix.teamCostMatrix = make(map[TeamCostPairID]*TravelInformation)
 	for _, fromTeam := range sb.teams {
 		for _, toTeam := range sb.teams {
 			if fromTeam.id < toTeam.id {
@@ -137,62 +146,69 @@ type TravelCosts struct {
 type Optimizer struct {
 	matrix *TeamCostMatrix
 	schema *SpeelSchema
+	bond   *Schaakbond
 }
 
 //NewOptimizer create a optimizer
-func NewOptimizer(matrix *TeamCostMatrix, schema *SpeelSchema) *Optimizer {
+func NewOptimizer(matrix *TeamCostMatrix, schema *SpeelSchema, bond *Schaakbond) *Optimizer {
 	optimizer := new(Optimizer)
 	optimizer.matrix = matrix
 	optimizer.schema = schema
+	optimizer.bond = bond
 	return optimizer
 }
 
 //Evaluate cost of team loten
-func (optimizer *Optimizer) Evaluate(teamGroups [][]TeamCostID) *TravelCosts {
+func (optimizer *Optimizer) Evaluate(teams []TeamCostID) *TravelCosts {
+
+	log.Print(teams)
 
 	result := new(TravelCosts)
 
-	for _, group := range teamGroups {
+	for lotNR, teamID := range teams {
+		var totalDuration, totalDistance uint64
 
-		for lotNR, teamID := range group {
-			var totalDuration, totalDistance uint64
+		travelInfos := make([]*TravelInformation, 0, 8)
+		uitCount := 0
 
-			travelInfos := make([]*TravelInformation, 0, 8)
-			uitCount := 0
+		for ronde := 0; ronde < 8; ronde++ { //ronde 9 is on central location, do not measure
+			if optimizer.schema.Loten[lotNR].Rondes[ronde].Verplaatsing == Uit {
+				travelInfo := optimizer.matrix.GetTeamsTravelCost(teamID, teams[optimizer.schema.Loten[lotNR].Rondes[ronde].Tegenstander])
 
-			for ronde := 0; ronde < 8; ronde++ { //ronde 9 is on central location, do not measure
-				if optimizer.schema.Loten[lotNR].Rondes[ronde].Verplaatsing == Uit {
-					travelInfo := optimizer.matrix.GetTeamsTravelCost(teamID, group[optimizer.schema.Loten[lotNR].Rondes[ronde].Tegenstander])
-					travelInfos = append(travelInfos, travelInfo)
-					totalDistance += travelInfo.Distance
-					totalDuration += travelInfo.Duration
-					uitCount++
+				if travelInfo == nil {
+					log.Panic("Unknown travelcosts for ", teamID, " <-> ", teams[optimizer.schema.Loten[lotNR].Rondes[ronde].Tegenstander])
 				}
+
+				travelInfos = append(travelInfos, travelInfo)
+				totalDistance += travelInfo.Distance
+				totalDuration += travelInfo.Duration
+				uitCount++
 			}
-
-			meanAllDistance := float64(totalDistance) / 8.0
-			meanAllDuration := float64(totalDuration) / 8.0
-			meanUitDistance := float64(totalDistance) / float64(len(travelInfos))
-			meanUitDuration := float64(totalDuration) / float64(len(travelInfos))
-
-			sdUitDistance := 0.0
-			sdUitDuration := 0.0
-
-			for _, ti := range travelInfos {
-				sdUitDistance += math.Pow(float64(ti.Distance)-meanUitDistance, 2)
-				sdUitDuration += math.Pow(float64(ti.Duration)-meanUitDuration, 2)
-			}
-
-			sdUitDistance = math.Sqrt(sdUitDistance / float64(len(travelInfos)-1))
-			sdUitDuration = math.Sqrt(sdUitDuration / float64(len(travelInfos)-1))
-
-			log.Printf("lotNr=%d, teamID=%v, meanAllDistance=%v, meanAllDuration=%v, meanUitDistance=%v, meanUitDuration=%v, sdUitDistance=%v, sdUitDuration=%v, totalDistance=%v, totalDuration=%v, len(travelInfos)=%d",
-				lotNR, teamID, meanAllDistance, meanAllDuration, meanUitDistance, meanUitDuration, sdUitDistance, sdUitDuration, totalDistance, totalDuration, len(travelInfos))
-
-			result.TotalDistance += totalDistance
-			result.TotalDuration += totalDuration
-			result.TotalCost += uint64((meanAllDistance * sdUitDistance) + (meanAllDuration * sdUitDuration))
 		}
+
+		meanAllDistance := float64(totalDistance) / 8.0
+		meanAllDuration := float64(totalDuration) / 8.0
+		meanUitDistance := float64(totalDistance) / float64(len(travelInfos))
+		meanUitDuration := float64(totalDuration) / float64(len(travelInfos))
+
+		sdUitDistance := 0.0
+		sdUitDuration := 0.0
+
+		for _, ti := range travelInfos {
+			sdUitDistance += math.Pow(float64(ti.Distance)-meanUitDistance, 2)
+			sdUitDuration += math.Pow(float64(ti.Duration)-meanUitDuration, 2)
+		}
+
+		sdUitDistance = math.Sqrt(sdUitDistance / float64(len(travelInfos)-1))
+		sdUitDuration = math.Sqrt(sdUitDuration / float64(len(travelInfos)-1))
+
+		//log.Printf("lotNr=%d, teamID=%v, meanAllDistance=%v, meanAllDuration=%v, meanUitDistance=%v, meanUitDuration=%v, sdUitDistance=%v, sdUitDuration=%v, totalDistance=%v, totalDuration=%v, len(travelInfos)=%d",
+		//	lotNR, teamID, meanAllDistance, meanAllDuration, meanUitDistance, meanUitDuration, sdUitDistance, sdUitDuration, totalDistance, totalDuration, len(travelInfos))
+
+		result.TotalDistance += totalDistance
+		result.TotalDuration += totalDuration
+		result.TotalCost += uint64((meanAllDistance * sdUitDistance) + (meanAllDuration * sdUitDuration))
 	}
+
 	return result
 }
