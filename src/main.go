@@ -17,7 +17,7 @@ type Vector []TeamCostID
 //Evaluate a vector
 func (X Vector) Evaluate() float64 {
 	var result float64
-	log.Printf("Evaluate %v", X)
+	//log.Printf("Evaluate %v", X)
 	for i := 0; i < len(X)/10; i++ {
 		result += float64(optimizer.Evaluate(X[(i * 10):((i + 1) * 10)]).TotalCost)
 	}
@@ -26,22 +26,30 @@ func (X Vector) Evaluate() float64 {
 
 //Mutate a Vector
 func (X Vector) Mutate(rng *rand.Rand) {
-	log.Printf("Mutate: %v", X)
-	mutations := rng.Intn(5) + 1
+	//log.Printf("Mutate: %v", X)
+	mutations := rng.Intn(2) + 1
 
 	for m := 0; m < mutations; m++ {
-		perm := rng.Perm(10)[:2]
-		grp := rng.Intn(len(optimizer.bond.teams) / 10)
+		//random pick a position to pick a group
+		absolutePosition := rng.Intn(len(optimizer.bond.teams))
+		description := optimizer.descriptions[absolutePosition]
+		groupPosition := absolutePosition - description.klasseGroup.begin
 
-		perm[0] = perm[0] + (grp * 10)
-		perm[1] = perm[1] + (grp * 10)
+		var swapGroupPosition int
+		for swapGroupPosition = groupPosition; swapGroupPosition == groupPosition; {
+			swapGroupPosition = rand.Intn(len(description.klasseGroup.teams))
+		}
 
-		x := X[perm[0]]
-		X[perm[0]] = X[perm[1]]
-		X[perm[1]] = x
+		groupPosition += description.klasseGroup.begin
+		swapGroupPosition += description.klasseGroup.begin
+
+		x := X[groupPosition]
+		X[groupPosition] = X[swapGroupPosition]
+		X[swapGroupPosition] = x
 
 	}
 
+	//log.Print("Mutated: ", X)
 }
 
 func teamInSlice(team TeamCostID, list []TeamCostID) bool {
@@ -53,11 +61,23 @@ func teamInSlice(team TeamCostID, list []TeamCostID) bool {
 	return false
 }
 
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 //Crossover a Vector
 //http://www.rubicite.com/Tutorials/GeneticAlgorithms/CrossoverOperators/Order1CrossoverOperator.aspx
 func (X Vector) Crossover(Y gago.Genome, rng *rand.Rand) (gago.Genome, gago.Genome) {
-
-	log.Printf("Crossover: %v", X)
 
 	totalTeams := len(optimizer.bond.teams)
 	child1 := make([]TeamCostID, totalTeams, totalTeams)
@@ -66,55 +86,37 @@ func (X Vector) Crossover(Y gago.Genome, rng *rand.Rand) (gago.Genome, gago.Geno
 	copy(child1, X)
 	copy(child2, Y.(Vector))
 
-	startXPosition := rng.Intn(len(X))
 	stopXPosition := rng.Intn(len(X))
+	startXPosition := rng.Intn(len(X))
 
 	if startXPosition == stopXPosition {
 		stopXPosition++
 		if stopXPosition > totalTeams-1 {
-			stopXPosition = stopXPosition - totalTeams
+			stopXPosition = 0
 		}
 	}
 
-	var swathSize int
-
-	if startXPosition < stopXPosition {
-		swathSize = (stopXPosition - startXPosition) + 1
-	} else {
-		swathSize = totalTeams - ((startXPosition - stopXPosition) - 1)
+	for ix := 0; ix < totalTeams; ix++ {
+		if (startXPosition < stopXPosition && (ix < startXPosition || ix > stopXPosition)) ||
+			(startXPosition > stopXPosition && (ix > stopXPosition && ix < startXPosition)) {
+			child1[ix] = TeamCostID(0xFF)
+			child2[ix] = TeamCostID(0xFF)
+		}
 	}
 
-	swath1 := make([]TeamCostID, swathSize, swathSize)
-	swath2 := make([]TeamCostID, swathSize, swathSize)
-
-	if startXPosition < stopXPosition {
-		copy(swath1, X[startXPosition:stopXPosition+1])
-		copy(swath2, Y.(Vector)[startXPosition:stopXPosition+1])
-	} else {
-		size := totalTeams - startXPosition
-		copy(swath1[:size], X[startXPosition:])
-		copy(swath2[:size], Y.(Vector)[startXPosition:])
-		copy(swath1[size:], X[:stopXPosition+1])
-		copy(swath2[size:], X[:stopXPosition+1])
-	}
-
-	//BUG: this presume a order over the whole vector, but it's only an order per group (of 10 team)
+	var ixx, ixy int
 	for ix := 0; ix < totalTeams; ix++ {
 		if (startXPosition < stopXPosition && (ix < startXPosition || ix > stopXPosition)) ||
 			(startXPosition > stopXPosition && (ix > stopXPosition && ix < startXPosition)) {
 
-		} else {
-			if teamInSlice(Y.(Vector)[ix], swath1) {
-				child1[ix] = X[ix]
-			} else {
-				child1[ix] = Y.(Vector)[ix]
+			for ; teamInSlice(Y.(Vector)[ixy], child1); ixy++ {
 			}
+			child1[ix] = Y.(Vector)[ixy]
 
-			if teamInSlice(X[ix], swath2) {
-				child2[ix] = X[ix]
-			} else {
-				child2[ix] = Y.(Vector)[ix]
+			for ; teamInSlice(X[ixx], child2); ixx++ {
 			}
+			child2[ix] = X[ixx]
+
 		}
 	}
 
@@ -127,7 +129,8 @@ func MakeVector(rng *rand.Rand) gago.Genome {
 	vector := make([]TeamCostID, totalTeams, totalTeams)
 
 	position := 0
-	for _, teams := range optimizer.bond.klasses {
+	for k := Meester; k <= Derde; k++ {
+		teams := optimizer.bond.klasses[k]
 		perm := rng.Perm(len(teams))
 
 		for _, v := range perm {
@@ -137,6 +140,16 @@ func MakeVector(rng *rand.Rand) gago.Genome {
 	}
 
 	return Vector(vector)
+}
+
+//PrintDescription info
+func (X Vector) PrintDescription() {
+	for _, tid := range X {
+
+		teamInfo := optimizer.matrix.GetTeamInfoByCostID(tid)
+
+		log.Printf("%v - %v %v %v %v %v ", teamInfo.teamCostID, teamInfo.team.id, teamInfo.team.klasse, teamInfo.team.naam, teamInfo.team.vereniging.naam, teamInfo.team.vereniging.plaats)
+	}
 }
 
 func main() {
@@ -234,8 +247,15 @@ func main() {
 	log.Print(travelCosts)
 
 	var ga = gago.Generational(MakeVector)
-	for i := 1; i < 10; i++ {
+	for i := 1; i < 10000; i++ {
 		ga.Enhance()
-		fmt.Printf("Best fitness at generation %d: %f\n", i, ga.Best.Fitness)
+		if i%10 == 0 {
+			fmt.Printf("Best fitness at generation %d: %f\n", i, ga.Best.Fitness)
+
+		}
 	}
+	fmt.Print(ga.Best)
+
+	ga.Best.Genome.(Vector).PrintDescription()
+
 }

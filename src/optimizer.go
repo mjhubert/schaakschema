@@ -21,6 +21,7 @@ type TeamInfo struct {
 //TeamCostMatrix cost info
 type TeamCostMatrix struct {
 	teamCostIDByTeamID map[string]*TeamInfo
+	teamInfoByCostID   map[TeamCostID]*TeamInfo
 	teamCostMatrix     map[TeamCostPairID]*TravelInformation
 }
 
@@ -85,6 +86,11 @@ func (matrix *TeamCostMatrix) GetTeamCostID(teamID string) TeamCostID {
 	return matrix.teamCostIDByTeamID[teamID].teamCostID
 }
 
+//GetTeamInfoByCostID info
+func (matrix *TeamCostMatrix) GetTeamInfoByCostID(teamID TeamCostID) *TeamInfo {
+	return matrix.teamInfoByCostID[teamID]
+}
+
 //GetOrAddTeamCostInfoByTeam of matrix
 func (matrix *TeamCostMatrix) GetOrAddTeamCostInfoByTeam(team Team) *TeamInfo {
 
@@ -99,7 +105,7 @@ func (matrix *TeamCostMatrix) GetOrAddTeamCostInfoByTeam(team Team) *TeamInfo {
 	teamInfo.teamCostID = TeamCostID(byte(len(matrix.teamCostIDByTeamID)))
 
 	matrix.teamCostIDByTeamID[team.id] = teamInfo
-
+	matrix.teamInfoByCostID[teamInfo.teamCostID] = teamInfo
 	return teamInfo
 }
 
@@ -108,6 +114,8 @@ func CreateTeamTravelCostInformationMatrix(sb *Schaakbond, distanceMatrix *Dista
 	matrix := new(TeamCostMatrix)
 	matrix.teamCostIDByTeamID = make(map[string]*TeamInfo)
 	matrix.teamCostMatrix = make(map[TeamCostPairID]*TravelInformation)
+	matrix.teamInfoByCostID = make(map[TeamCostID]*TeamInfo)
+
 	for _, fromTeam := range sb.teams {
 		for _, toTeam := range sb.teams {
 			if fromTeam.id < toTeam.id {
@@ -142,11 +150,26 @@ type TravelCosts struct {
 	TotalDuration, TotalDistance, TotalCost uint64
 }
 
+//KlasseGroup info
+type KlasseGroup struct {
+	klasse     Klasse
+	begin, end int
+	teams      []TeamCostID
+}
+
+//Description of property of array position
+type Description struct {
+	klasseGroup *KlasseGroup
+	groupNr     int
+	begin, end  int
+}
+
 //Optimizer info
 type Optimizer struct {
-	matrix *TeamCostMatrix
-	schema *SpeelSchema
-	bond   *Schaakbond
+	matrix       *TeamCostMatrix
+	schema       *SpeelSchema
+	bond         *Schaakbond
+	descriptions []*Description
 }
 
 //NewOptimizer create a optimizer
@@ -155,13 +178,48 @@ func NewOptimizer(matrix *TeamCostMatrix, schema *SpeelSchema, bond *Schaakbond)
 	optimizer.matrix = matrix
 	optimizer.schema = schema
 	optimizer.bond = bond
+
+	optimizer.descriptions = make([]*Description, len(bond.teams), len(bond.teams))
+
+	ix := 0
+
+	for k := Meester; k <= Derde; k++ {
+
+		klasseGroup := new(KlasseGroup)
+
+		teams := bond.klasses[k]
+		klasseGroup.teams = make([]TeamCostID, len(teams), len(teams))
+
+		tix := 0
+		for _, t := range teams {
+			klasseGroup.teams[tix] = matrix.GetTeamCostID(t.id)
+			tix++
+		}
+
+		klasseGroup.begin = ix
+		klasseGroup.end = ix + (len(teams) - 1)
+		klasseGroup.klasse = k
+
+		for i := 0; i < len(teams)/10; i++ {
+			description := new(Description)
+			description.klasseGroup = klasseGroup
+			description.groupNr = i
+			description.begin = klasseGroup.begin + (i * 10)
+			description.end = klasseGroup.begin + (((i + 1) * 10) - 1)
+
+			for x := description.begin; x <= description.end; x++ {
+				optimizer.descriptions[x] = description
+			}
+		}
+
+		ix = klasseGroup.end + 1
+	}
+
 	return optimizer
 }
 
 //Evaluate cost of team loten
 func (optimizer *Optimizer) Evaluate(teams []TeamCostID) *TravelCosts {
-
-	log.Print(teams)
 
 	result := new(TravelCosts)
 
