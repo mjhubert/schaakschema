@@ -245,7 +245,7 @@ func (optimizer *Optimizer) Evaluate(teams []TeamCostID) *TravelCosts {
 		}
 
 		meanAllDistance := float64(totalDistance) / 8.0
-		meanAllDuration := float64(totalDuration) / 8.0
+		//meanAllDuration := float64(totalDuration) / 8.0
 		meanUitDistance := float64(totalDistance) / float64(len(travelInfos))
 		meanUitDuration := float64(totalDuration) / float64(len(travelInfos))
 
@@ -265,7 +265,8 @@ func (optimizer *Optimizer) Evaluate(teams []TeamCostID) *TravelCosts {
 
 		result.TotalDistance += totalDistance
 		result.TotalDuration += totalDuration
-		result.TotalCost += uint64((meanAllDistance * sdUitDistance) + (meanAllDuration * sdUitDuration))
+		//result.TotalCost += uint64((meanAllDistance * sdUitDistance) + (meanAllDuration * sdUitDuration))
+		result.TotalCost += uint64(meanAllDistance * sdUitDistance)
 	}
 
 	return result

@@ -5,6 +5,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"strconv"
 
 	"github.com/MaxHalford/gago"
 )
@@ -144,10 +145,13 @@ func MakeVector(rng *rand.Rand) gago.Genome {
 
 //PrintDescription info
 func (X Vector) PrintDescription() {
-	for _, tid := range X {
+	log.Print("XXX")
+	for ix, tid := range X {
 
 		teamInfo := optimizer.matrix.GetTeamInfoByCostID(tid)
-
+		if ix%10 == 0 {
+			log.Print("-----------")
+		}
 		log.Printf("%v - %v %v %v %v %v ", teamInfo.teamCostID, teamInfo.team.id, teamInfo.team.klasse, teamInfo.team.naam, teamInfo.team.vereniging.naam, teamInfo.team.vereniging.plaats)
 	}
 }
@@ -245,15 +249,57 @@ func main() {
 	travelCosts := optimizer.Evaluate(lastYearGroup1ACostIDs)
 
 	log.Print(travelCosts)
+	/*
+		lastYear := []string{
+			"1700401", "1100111", "0900711", "0600171", "1600131", "0200271", "0600081", "1400091", "0600821", "1400431", "0400691", "0100261", "0400891", "0900611", "0800071",
+			"0400041", "0900081", "0300101", "0900231", "0200541", "1200101", "1900331", "0400611", "0800091", "1200071", "1700661", "0400531", "0900411", "0600521", "1100181",
+			"0800431", "0200011", "0600571", "0300371", "0400351", "0200272", "0400532", "0300102", "0300161", "0200542", "0600041", "1100112", "0900712", "0800092", "0800072",
+			"0600311", "0800211", "0900341", "1100291", "0200543", "0900441", "0800261", "0600561", "0400421", "1400511", "1700662", "1100121", "1400261", "0600522", "1400401",
+			"1700402", "1700801", "1700611", "1600051", "1600132", "1900281", "1700241", "1700541", "1900051", "1400101", "0400741", "0100262", "0200151", "0300011", "0100331",
+			"0200321", "0100291", "0100301", "0200221", "0400381", "0400411", "0200141", "0400892", "0800093", "0800031", "0200131", "0900082", "0300103", "0300111", "0300301",
+			"1200102", "1100021", "0100081", "0800094", "0800073", "0400043", "0800381", "0900342", "0600523", "0900621", "0400692", "0900011", "0400612", "0600822", "0800032",
+			"1100091", "0600082", "0800541", "0600602", "0900421", "0900422", "1100113", "1200381", "0800095", "1200231", "0400042", "0400061", "1400092", "0900232", "1400402",
+			"1200271", "1100114", "1400481", "1200441", "1200072", "1100111", "1100221", "1700542", "1400221", "1100182", "1200103", "1400421", "1600011", "1600052", "1600133",
+			"1700091", "1400331", "1400093", "1400071", "1600091", "1700831", "1900332", "0600191", "1700381", "1900211", "1700663", "1700242", "1700141", "1700841", "1900231"}
+
+		lastYearCostIDs, lyerr := optimizer.matrix.TranslateToTeamCostIDs(lastYear)
+
+		if lyerr != nil {
+			panic(lyerr)
+		}
+
+		lastYearVector := Vector(lastYearCostIDs)
+
+		e := lastYearVector.Evaluate()
+
+		log.Print("Fitness lastYear", e)
+	*/
+	// open output file
+	fo, err := os.Create("fitness.txt")
+	if err != nil {
+		panic(err)
+	}
+	// close fo on exit and check for its returned error
+	defer func() {
+		if err := fo.Close(); err != nil {
+			panic(err)
+		}
+	}()
 
 	var ga = gago.Generational(MakeVector)
-	for i := 1; i < 10000; i++ {
-		ga.Enhance()
-		if i%10 == 0 {
-			fmt.Printf("Best fitness at generation %d: %f\n", i, ga.Best.Fitness)
 
+	var lastFitness float64
+	for i := 1; i < 5000000; i++ {
+		ga.Enhance()
+
+		if i%1000 == 0 {
+			fo.WriteString(strconv.FormatFloat(ga.Best.Fitness, 'f', 6, 64) + "\n")
+			fmt.Printf("Best fitness at generation %d: %f (%v)\n", i, ga.Best.Fitness, ga.Best.Fitness-lastFitness)
+			ga.Best.Genome.(Vector).PrintDescription()
+			lastFitness = ga.Best.Fitness
 		}
 	}
+	fo.WriteString(strconv.FormatFloat(ga.Best.Fitness, 'f', 6, 64) + "\n")
 	fmt.Print(ga.Best)
 
 	ga.Best.Genome.(Vector).PrintDescription()
