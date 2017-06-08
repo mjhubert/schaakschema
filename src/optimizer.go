@@ -223,13 +223,54 @@ func (optimizer *Optimizer) Evaluate(teams []TeamCostID) *TravelCosts {
 
 	result := new(TravelCosts)
 
+	//2 promovendi
+	//1 degradant
+	//penalty if samen vereniging
+
+	var promovendi, degradanten, kampioenen uint
+	promovendi = 0
+	degradanten = 0
+	kampioenen = 0
+	verenigingen := make(map[string]int)
+
 	for lotNR, teamID := range teams {
 		var totalDuration, totalDistance uint64
 
-		travelInfos := make([]*TravelInformation, 0, 8)
+		travelInfos := make([]*TravelInformation, 0, 9)
 		uitCount := 0
 
-		for ronde := 0; ronde < 8; ronde++ { //ronde 9 is on central location, do not measure
+		teamInfo := optimizer.matrix.GetTeamInfoByCostID(teamID)
+
+		if teamInfo == nil {
+			log.Panic("Unknown team", teamID, "!")
+		}
+
+		switch teamInfo.team.pd {
+		case Promotie:
+			promovendi++
+			break
+		case Degradatie:
+			degradanten++
+			break
+		case Kampioen:
+			kampioenen++
+			break
+		}
+
+		vercount := verenigingen[teamInfo.team.vereniging.id]
+		verenigingen[teamInfo.team.vereniging.id] = (vercount + 1)
+
+		for ronde := 0; ronde < 9; ronde++ {
+			//ronde 9 is on central location, for Meester klasse
+			if ronde == 8 {
+				teamInfo := optimizer.matrix.GetTeamInfoByCostID(teamID)
+
+				if teamInfo != nil &&
+					teamInfo.team.klasse == Meester {
+					//special
+				}
+			}
+
 			if optimizer.schema.Loten[lotNR].Rondes[ronde].Verplaatsing == Uit {
 				travelInfo := optimizer.matrix.GetTeamsTravelCost(teamID, teams[optimizer.schema.Loten[lotNR].Rondes[ronde].Tegenstander])
 
@@ -245,7 +286,7 @@ func (optimizer *Optimizer) Evaluate(teams []TeamCostID) *TravelCosts {
 		}
 
 		meanAllDistance := float64(totalDistance) / 8.0
-		//meanAllDuration := float64(totalDuration) / 8.0
+		meanAllDuration := float64(totalDuration) / 8.0
 		meanUitDistance := float64(totalDistance) / float64(len(travelInfos))
 		meanUitDuration := float64(totalDuration) / float64(len(travelInfos))
 
@@ -265,8 +306,24 @@ func (optimizer *Optimizer) Evaluate(teams []TeamCostID) *TravelCosts {
 
 		result.TotalDistance += totalDistance
 		result.TotalDuration += totalDuration
-		//result.TotalCost += uint64((meanAllDistance * sdUitDistance) + (meanAllDuration * sdUitDuration))
-		result.TotalCost += uint64(meanAllDistance * sdUitDistance)
+		result.TotalCost += uint64((meanAllDistance * sdUitDistance) + (meanAllDuration * sdUitDuration))
+		//result.TotalCost += uint64(meanAllDistance * sdUitDistance)
+
+	}
+
+	//evaluate whish list
+	//foreach whish not granted add cost penalty
+	//for _,wish := wishlist
+	//
+
+	//penalties
+	if (promovendi+kampioenen) != 2 || degradanten != 1 {
+		//log.Println("Penalty: ", result.TotalCost, " => ", uint64(float64(result.TotalCost)*1.2))
+		result.TotalCost = uint64(float64(result.TotalCost) * 1.9)
+	}
+
+	if len(verenigingen) != 10 {
+		result.TotalCost = uint64(float64(result.TotalCost) * 1.9)
 	}
 
 	return result

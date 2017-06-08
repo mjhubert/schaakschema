@@ -22,6 +22,10 @@ func (X Vector) Evaluate() float64 {
 	for i := 0; i < len(X)/10; i++ {
 		result += float64(optimizer.Evaluate(X[(i * 10):((i + 1) * 10)]).TotalCost)
 	}
+
+	//whish list evaluation
+	//add penalities for not granted whishes
+
 	return result
 }
 
@@ -143,6 +147,19 @@ func MakeVector(rng *rand.Rand) gago.Genome {
 	return Vector(vector)
 }
 
+func truncateString(str string, num int) string {
+	bnoden := str
+	if len(str) > num {
+
+		bnoden = str[0:num]
+	} else if len(str) < num {
+		for i := 0; i < num-len(str); i++ {
+			bnoden += " "
+		}
+	}
+	return bnoden
+}
+
 //PrintDescription info
 func (X Vector) PrintDescription() {
 	log.Print("XXX")
@@ -150,9 +167,9 @@ func (X Vector) PrintDescription() {
 
 		teamInfo := optimizer.matrix.GetTeamInfoByCostID(tid)
 		if ix%10 == 0 {
-			log.Print("-----------")
+			log.Print("\n")
 		}
-		log.Printf("%v - %v %v %v %v %v ", teamInfo.teamCostID, teamInfo.team.id, teamInfo.team.klasse, teamInfo.team.naam, teamInfo.team.vereniging.naam, teamInfo.team.vereniging.plaats)
+		log.Printf("%v\t%v\t%v\t%v\t%v\t%v\t%v", teamInfo.teamCostID, teamInfo.team.klasse, teamInfo.team.pd, teamInfo.team.id, truncateString(teamInfo.team.vereniging.plaats, 18), truncateString(teamInfo.team.naam, 18), teamInfo.team.vereniging.id)
 	}
 }
 
@@ -287,6 +304,7 @@ func main() {
 	}()
 
 	var ga = gago.Generational(MakeVector)
+	ga.Initialize()
 
 	var lastFitness float64
 	for i := 1; i < 5000000; i++ {
