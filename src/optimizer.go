@@ -323,7 +323,7 @@ func (optimizer *Optimizer) Evaluate(teams []TeamCostID) *TravelCosts {
 	}
 
 	if len(verenigingen) != 10 {
-		result.TotalCost = uint64(float64(result.TotalCost) * 1.9)
+		result.TotalCost = uint64(float64(result.TotalCost) * 2.5)
 	}
 
 	return result
