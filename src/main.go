@@ -18,7 +18,7 @@ type Vector []TeamCostID
 //Evaluate a vector
 func (X Vector) Evaluate() float64 {
 	var result float64
-	//log.Printf("Evaluate %v", X)
+
 	for i := 0; i < len(X)/10; i++ {
 		result += float64(optimizer.Evaluate(X[(i * 10):((i + 1) * 10)]).TotalCost)
 	}
