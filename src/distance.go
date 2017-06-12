@@ -179,6 +179,8 @@ func getDistanceMatrix(apiKey string, cities []string, info *[]TravelInformation
 
 	totalCities := len(cities)
 
+	log.Print(cities)
+
 	//Limit to 25 elements max
 	if recursiveDistances &&
 		totalCities > 20 {
@@ -225,7 +227,11 @@ func getDistanceMatrix(apiKey string, cities []string, info *[]TravelInformation
 	origins := cities[:half]
 	destinations := cities[half:]
 
+	log.Printf("origins: %s, destiniations: %s", origins, destinations)
+
 	if position >= skip {
+
+		log.Printf("%s, %s, %s", apiKey, origins, destinations)
 
 		response, err = requestDistanceMatrix(apiKey, origins, destinations)
 
@@ -253,6 +259,7 @@ func getDistanceMatrix(apiKey string, cities []string, info *[]TravelInformation
 			}
 
 		} else {
+			log.Print(response)
 			return position, errors.New("Response status invalid: " + response.Status)
 		}
 
